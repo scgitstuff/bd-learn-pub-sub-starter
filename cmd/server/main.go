@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -30,23 +29,49 @@ func main() {
 	}
 	fmt.Println("channel open")
 
-	err = pubsub.PublishJSON(
-		channel,
-		routing.ExchangePerilDirect,
-		routing.PauseKey,
-		routing.PlayingState{
-			IsPaused: true,
-		},
-	)
-	if err != nil {
-		fmt.Printf("Bad stuff happened:\n%s\n", err)
-		return
+	// TODO: no constants defined, just hard coded shit
+	gamelogic.PrintServerHelp()
+
+	for {
+		stuff := gamelogic.GetInput()
+		if len(stuff) == 0 {
+			continue
+		}
+
+		switch stuff[0] {
+		case routing.PauseKey:
+			fmt.Println("sending a pause message")
+			err = pubsub.PublishJSON(
+				channel,
+				routing.ExchangePerilDirect,
+				routing.PauseKey,
+				routing.PlayingState{
+					IsPaused: true,
+				},
+			)
+			if err != nil {
+				fmt.Printf("Bad stuff happened:\n%s\n", err)
+				return
+			}
+		case "resume":
+			fmt.Println("sending a pause message")
+			err = pubsub.PublishJSON(
+				channel,
+				routing.ExchangePerilDirect,
+				"resume",
+				routing.PlayingState{
+					IsPaused: false,
+				},
+			)
+			if err != nil {
+				fmt.Printf("Bad stuff happened:\n%s\n", err)
+				return
+			}
+		case "quit":
+			fmt.Println("program is shutting down")
+			return
+		default:
+			fmt.Printf("bad message: %s\n", stuff[0])
+		}
 	}
-
-	// wait for ctrl+c
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
-
-	fmt.Println("\nprogram is shutting down")
 }
