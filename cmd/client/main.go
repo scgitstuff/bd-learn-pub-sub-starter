@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -38,11 +36,43 @@ func main() {
 		queueName,
 		routing.PauseKey,
 		pubsub.Transient)
+	if err != nil {
+		fmt.Printf("Bad stuff happened:\n%s\n", err)
+		return
+	}
 
-	// wait for ctrl+c
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
+	state := gamelogic.NewGameState(user)
 
-	fmt.Println("\nprogram is shutting down")
+	for {
+		stuff := gamelogic.GetInput()
+		if len(stuff) == 0 {
+			continue
+		}
+
+		switch stuff[0] {
+		case "spawn":
+			err := state.CommandSpawn(stuff)
+			if err != nil {
+				fmt.Printf("Bad stuff happened:\n%s\n", err)
+				return
+			}
+		case "move":
+			_, err := state.CommandMove(stuff)
+			if err != nil {
+				fmt.Printf("Bad stuff happened:\n%s\n", err)
+				return
+			}
+		case "status":
+			state.CommandStatus()
+		case "help":
+			gamelogic.PrintClientHelp()
+		case "spam":
+			fmt.Println("Spamming not allowed yet!")
+		case "quit":
+			gamelogic.PrintQuit()
+			return
+		default:
+			fmt.Printf("bad message: %s\n", stuff[0])
+		}
+	}
 }
