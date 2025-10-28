@@ -29,6 +29,18 @@ func main() {
 	}
 	fmt.Println("channel open")
 
+	key := routing.GameLogSlug + ".*"
+	_, _, err = pubsub.DeclareAndBind(
+		con,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		key,
+		pubsub.Durable)
+	if err != nil {
+		fmt.Printf("Bad stuff happened:\n%s\n", err)
+		return
+	}
+
 	// TODO: no constants defined, just hard coded shit
 	gamelogic.PrintServerHelp()
 
