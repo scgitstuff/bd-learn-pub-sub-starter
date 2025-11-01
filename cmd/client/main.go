@@ -14,12 +14,12 @@ func main() {
 
 	fmt.Println("Starting Peril client...")
 
-	con, err := amqp.Dial(url)
+	conn, err := amqp.Dial(url)
 	if err != nil {
 		fmt.Printf("Bad stuff happened:\n%s\n", err)
 		return
 	}
-	defer con.Close()
+	defer conn.Close()
 	fmt.Printf("connected to: %s\n", url)
 
 	user, err := gamelogic.ClientWelcome()
@@ -29,19 +29,17 @@ func main() {
 	}
 	fmt.Printf("User: %s\n", user)
 
+	state := gamelogic.NewGameState(user)
+
 	queueName := fmt.Sprintf("%s.%s", routing.PauseKey, user)
-	_, _, err = pubsub.DeclareAndBind(
-		con,
+	pubsub.SubscribeJSON(
+		conn,
 		routing.ExchangePerilDirect,
 		queueName,
 		routing.PauseKey,
-		pubsub.Transient)
-	if err != nil {
-		fmt.Printf("Bad stuff happened:\n%s\n", err)
-		return
-	}
-
-	state := gamelogic.NewGameState(user)
+		pubsub.Transient,
+		handlerPause(state),
+	)
 
 	for {
 		stuff := gamelogic.GetInput()
@@ -74,5 +72,14 @@ func main() {
 		default:
 			fmt.Printf("bad message: %s\n", stuff[0])
 		}
+	}
+}
+
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
+	return func(ps routing.PlayingState) {
+		// TODO: this is always false. Why?
+		fmt.Printf("handlerPause : %v\n", ps.IsPaused)
+		defer fmt.Print("> ")
+		gs.HandlePause(ps)
 	}
 }

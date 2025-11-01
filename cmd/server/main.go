@@ -30,7 +30,7 @@ func main() {
 	fmt.Println("channel open")
 
 	key := routing.GameLogSlug + ".*"
-	_, _, err = pubsub.DeclareAndBind(
+	_, queue, err := pubsub.DeclareAndBind(
 		con,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
@@ -40,6 +40,7 @@ func main() {
 		fmt.Printf("Bad stuff happened:\n%s\n", err)
 		return
 	}
+	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
 	// TODO: no constants defined, just hard coded shit
 	gamelogic.PrintServerHelp()
@@ -66,11 +67,11 @@ func main() {
 				return
 			}
 		case "resume":
-			fmt.Println("sending a pause message")
+			fmt.Println("sending a resume message")
 			err = pubsub.PublishJSON(
 				channel,
 				routing.ExchangePerilDirect,
-				"resume",
+				routing.PauseKey,
 				routing.PlayingState{
 					IsPaused: false,
 				},

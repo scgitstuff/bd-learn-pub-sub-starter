@@ -18,13 +18,14 @@ const (
 func PublishJSON[T any](
 	ch *amqp.Channel,
 	exchange, key string,
-	val T) error {
-
+	val T,
+) error {
 	data, err := json.Marshal(val)
 	if err != nil {
 		fmt.Println("Marshal() failed")
 		return err
 	}
+	fmt.Printf("PublishJSON : %v\n", val)
 
 	err = ch.PublishWithContext(
 		context.Background(),
@@ -86,5 +87,33 @@ func SubscribeJSON[T any](
 	handler func(T),
 ) error {
 
+	ch, queue, err := DeclareAndBind(
+		conn,
+		exchange,
+		queueName,
+		key,
+		queueType)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
+
+	stuff, err := ch.Consume(queue.Name, "", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	go doStuff(stuff, handler)
+
 	return nil
+}
+
+func doStuff[T any](stuff <-chan amqp.Delivery, handler func(T)) {
+	for msg := range stuff {
+		var x T
+		json.Unmarshal(msg.Body, x)
+		fmt.Printf("msg loop: %v\n", x)
+		handler(x)
+		msg.Ack(false)
+	}
 }
