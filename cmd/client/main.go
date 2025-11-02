@@ -52,13 +52,11 @@ func main() {
 			err := state.CommandSpawn(stuff)
 			if err != nil {
 				fmt.Printf("Bad stuff happened:\n%s\n", err)
-				return
 			}
 		case "move":
 			_, err := state.CommandMove(stuff)
 			if err != nil {
 				fmt.Printf("Bad stuff happened:\n%s\n", err)
-				return
 			}
 		case "status":
 			state.CommandStatus()
@@ -77,8 +75,7 @@ func main() {
 
 func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
 	return func(ps routing.PlayingState) {
-		// TODO: this is always false. Why?
-		fmt.Printf("handlerPause : %v\n", ps.IsPaused)
+		// fmt.Printf("handlerPause : %v\n", ps.IsPaused)
 		defer fmt.Print("> ")
 		gs.HandlePause(ps)
 	}

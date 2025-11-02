@@ -69,7 +69,6 @@ func DeclareAndBind(
 		fmt.Printf("Bad stuff happened:\n%s\n", err)
 		return nil, amqp.Queue{}, err
 	}
-	_ = tranQ
 
 	err = channel.QueueBind(queueName, key, exchange, false, nil)
 	if err != nil {
@@ -111,8 +110,8 @@ func SubscribeJSON[T any](
 func doStuff[T any](stuff <-chan amqp.Delivery, handler func(T)) {
 	for msg := range stuff {
 		var x T
-		json.Unmarshal(msg.Body, x)
-		fmt.Printf("msg loop: %v\n", x)
+		json.Unmarshal(msg.Body, &x)
+		// fmt.Printf("msg loop: %v\n", x)
 		handler(x)
 		msg.Ack(false)
 	}

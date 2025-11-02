@@ -64,7 +64,6 @@ func main() {
 			)
 			if err != nil {
 				fmt.Printf("Bad stuff happened:\n%s\n", err)
-				return
 			}
 		case "resume":
 			fmt.Println("sending a resume message")
@@ -78,7 +77,6 @@ func main() {
 			)
 			if err != nil {
 				fmt.Printf("Bad stuff happened:\n%s\n", err)
-				return
 			}
 		case "quit":
 			fmt.Println("program is shutting down")
