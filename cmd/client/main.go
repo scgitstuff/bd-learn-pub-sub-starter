@@ -22,6 +22,12 @@ func main() {
 	defer conn.Close()
 	fmt.Printf("connected to: %s\n", url)
 
+	channel, err := conn.Channel()
+	if err != nil {
+		fmt.Printf("Bad stuff happened:\n%s\n", err)
+		return
+	}
+
 	user, err := gamelogic.ClientWelcome()
 	if err != nil {
 		fmt.Printf("Bad stuff happened:\n%s\n", err)
@@ -31,15 +37,31 @@ func main() {
 
 	state := gamelogic.NewGameState(user)
 
-	queueName := fmt.Sprintf("%s.%s", routing.PauseKey, user)
-	pubsub.SubscribeJSON(
+	err = pubsub.SubscribeJSON(
 		conn,
 		routing.ExchangePerilDirect,
-		queueName,
+		routing.PauseKey+"."+user,
 		routing.PauseKey,
 		pubsub.Transient,
 		handlerPause(state),
 	)
+	if err != nil {
+		fmt.Printf("Bad stuff happened:\n%s\n", err)
+		return
+	}
+
+	err = pubsub.SubscribeJSON(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.ArmyMovesPrefix+"."+user,
+		routing.ArmyMovesPrefix+".*",
+		pubsub.Transient,
+		handlerMove(state),
+	)
+	if err != nil {
+		fmt.Printf("Bad stuff happened:\n%s\n", err)
+		return
+	}
 
 	for {
 		stuff := gamelogic.GetInput()
@@ -52,12 +74,25 @@ func main() {
 			err := state.CommandSpawn(stuff)
 			if err != nil {
 				fmt.Printf("Bad stuff happened:\n%s\n", err)
+				continue
 			}
 		case "move":
-			_, err := state.CommandMove(stuff)
+			move, err := state.CommandMove(stuff)
 			if err != nil {
 				fmt.Printf("Bad stuff happened:\n%s\n", err)
+				continue
 			}
+			err = pubsub.PublishJSON(
+				channel,
+				routing.ExchangePerilTopic,
+				routing.ArmyMovesPrefix+"."+user,
+				move,
+			)
+			if err != nil {
+				fmt.Printf("Bad stuff happened:\n%s\n", err)
+				continue
+			}
+			fmt.Println("move was published successfully")
 		case "status":
 			state.CommandStatus()
 		case "help":
@@ -78,5 +113,13 @@ func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
 		// fmt.Printf("handlerPause : %v\n", ps.IsPaused)
 		defer fmt.Print("> ")
 		gs.HandlePause(ps)
+	}
+}
+
+func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) {
+	return func(move gamelogic.ArmyMove) {
+		// fmt.Printf("handlerMove : %v\n", move.Player.Username)
+		defer fmt.Print("> ")
+		gs.HandleMove(move)
 	}
 }

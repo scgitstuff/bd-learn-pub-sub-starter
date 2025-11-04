@@ -22,12 +22,10 @@ func PublishJSON[T any](
 ) error {
 	data, err := json.Marshal(val)
 	if err != nil {
-		fmt.Println("Marshal() failed")
 		return err
 	}
-	fmt.Printf("PublishJSON : %v\n", val)
 
-	err = ch.PublishWithContext(
+	return ch.PublishWithContext(
 		context.Background(),
 		exchange, key,
 		false, false,
@@ -36,12 +34,6 @@ func PublishJSON[T any](
 			Body:        data,
 		},
 	)
-	if err != nil {
-		fmt.Println("PublishWithContext() failed")
-		return err
-	}
-
-	return nil
 }
 
 func DeclareAndBind(
@@ -52,10 +44,8 @@ func DeclareAndBind(
 
 	channel, err := conn.Channel()
 	if err != nil {
-		fmt.Printf("Bad stuff happened:\n%s\n", err)
 		return nil, amqp.Queue{}, err
 	}
-	fmt.Println("channel open")
 
 	tranQ, err := channel.QueueDeclare(
 		queueName,
@@ -66,13 +56,11 @@ func DeclareAndBind(
 		nil,
 	)
 	if err != nil {
-		fmt.Printf("Bad stuff happened:\n%s\n", err)
 		return nil, amqp.Queue{}, err
 	}
 
 	err = channel.QueueBind(queueName, key, exchange, false, nil)
 	if err != nil {
-		fmt.Printf("Bad stuff happened:\n%s\n", err)
 		return nil, amqp.Queue{}, err
 	}
 
@@ -95,9 +83,16 @@ func SubscribeJSON[T any](
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
-	stuff, err := ch.Consume(queue.Name, "", false, false, false, false, nil)
+	stuff, err := ch.Consume(
+		queue.Name,
+		"",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
 	if err != nil {
 		return err
 	}
@@ -110,8 +105,13 @@ func SubscribeJSON[T any](
 func doStuff[T any](stuff <-chan amqp.Delivery, handler func(T)) {
 	for msg := range stuff {
 		var x T
-		json.Unmarshal(msg.Body, &x)
-		// fmt.Printf("msg loop: %v\n", x)
+
+		err := json.Unmarshal(msg.Body, &x)
+		if err != nil {
+			fmt.Printf("could not unmarshal message: %v\n", err)
+			continue
+		}
+
 		handler(x)
 		msg.Ack(false)
 	}
