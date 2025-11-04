@@ -15,6 +15,14 @@ const (
 	Transient SimpleQueueType = "transient"
 )
 
+type AckType int
+
+const (
+	Ack AckType = iota
+	NackRequeue
+	NackDiscard
+)
+
 func PublishJSON[T any](
 	ch *amqp.Channel,
 	exchange, key string,
@@ -71,7 +79,7 @@ func SubscribeJSON[T any](
 	conn *amqp.Connection,
 	exchange, queueName, key string,
 	queueType SimpleQueueType, // an enum to represent "durable" or "transient"
-	handler func(T),
+	handler func(T) AckType,
 ) error {
 
 	ch, queue, err := DeclareAndBind(
@@ -102,7 +110,7 @@ func SubscribeJSON[T any](
 	return nil
 }
 
-func doStuff[T any](stuff <-chan amqp.Delivery, handler func(T)) {
+func doStuff[T any](stuff <-chan amqp.Delivery, handler func(T) AckType) {
 	for msg := range stuff {
 		var x T
 
@@ -112,7 +120,19 @@ func doStuff[T any](stuff <-chan amqp.Delivery, handler func(T)) {
 			continue
 		}
 
-		handler(x)
-		msg.Ack(false)
+		ack := handler(x)
+		switch ack {
+		case Ack:
+			msg.Ack(false)
+			fmt.Println("Ack")
+		case NackRequeue:
+			msg.Nack(false, true)
+			fmt.Println("NackRequeue")
+		case NackDiscard:
+			msg.Nack(false, false)
+			fmt.Println("NackDiscard")
+		default:
+			fmt.Println("This should never happen")
+		}
 	}
 }
