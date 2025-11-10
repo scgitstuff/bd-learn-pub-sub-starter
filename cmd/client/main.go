@@ -56,7 +56,7 @@ func main() {
 		routing.ArmyMovesPrefix+"."+user,
 		routing.ArmyMovesPrefix+".*",
 		pubsub.Transient,
-		handlerMove(state),
+		handlerMove(state, channel),
 	)
 	if err != nil {
 		fmt.Printf("Bad stuff happened:\n%s\n", err)
@@ -118,15 +118,31 @@ func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) pubsub.Ack
 	}
 }
 
-func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) pubsub.AckType {
+func handlerMove(
+	gs *gamelogic.GameState,
+	channel *amqp.Channel,
+) func(gamelogic.ArmyMove) pubsub.AckType {
 	return func(move gamelogic.ArmyMove) pubsub.AckType {
 		// fmt.Printf("handlerMove : %v\n", move.Player.Username)
 		defer fmt.Print("> ")
 		outcome := gs.HandleMove(move)
 
-		if outcome == gamelogic.MoveOutComeSafe ||
-			outcome == gamelogic.MoveOutcomeMakeWar {
+		switch outcome {
+		case gamelogic.MoveOutComeSafe:
 			return pubsub.Ack
+		case gamelogic.MoveOutcomeMakeWar:
+			err := pubsub.PublishJSON(
+				channel,
+				routing.ExchangePerilTopic,
+				routing.WarRecognitionsPrefix+"."+gs.Player.Username,
+				move,
+			)
+			if err != nil {
+				fmt.Printf("Bad stuff happened:\n%s\n", err)
+			}
+
+			// return pubsub.Ack
+			return pubsub.NackRequeue
 		}
 
 		return pubsub.NackDiscard
