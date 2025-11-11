@@ -16,7 +16,7 @@ func main() {
 
 	conn, err := amqp.Dial(url)
 	if err != nil {
-		fmt.Printf("Bad stuff happened:\n%s\n", err)
+		fmt.Printf("amqp.Dial() failed:\n%s\n", err)
 		return
 	}
 	defer conn.Close()
@@ -24,13 +24,13 @@ func main() {
 
 	channel, err := conn.Channel()
 	if err != nil {
-		fmt.Printf("Bad stuff happened:\n%s\n", err)
+		fmt.Printf("con.Channel() failed:\n%s\n", err)
 		return
 	}
 
 	user, err := gamelogic.ClientWelcome()
 	if err != nil {
-		fmt.Printf("Bad stuff happened:\n%s\n", err)
+		fmt.Printf("ClientWelcome() failed:\n%s\n", err)
 		return
 	}
 	fmt.Printf("User: %s\n", user)
@@ -46,7 +46,7 @@ func main() {
 		handlerPause(state),
 	)
 	if err != nil {
-		fmt.Printf("Bad stuff happened:\n%s\n", err)
+		fmt.Printf("Subscribe to pause failed:\n%s\n", err)
 		return
 	}
 
@@ -59,7 +59,20 @@ func main() {
 		handlerMove(state, channel),
 	)
 	if err != nil {
-		fmt.Printf("Bad stuff happened:\n%s\n", err)
+		fmt.Printf("Subscribe to move failed:\n%s\n", err)
+		return
+	}
+
+	err = pubsub.SubscribeJSON(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.WarRecognitionsPrefix,
+		routing.WarRecognitionsPrefix+".*",
+		pubsub.Durable,
+		handlerWar(state),
+	)
+	if err != nil {
+		fmt.Printf("Subscribe to war failed:\n%s\n", err)
 		return
 	}
 
@@ -105,46 +118,5 @@ func main() {
 		default:
 			fmt.Printf("bad message: %s\n", stuff[0])
 		}
-	}
-}
-
-func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) pubsub.AckType {
-	return func(ps routing.PlayingState) pubsub.AckType {
-		// fmt.Printf("handlerPause : %v\n", ps.IsPaused)
-		defer fmt.Print("> ")
-		gs.HandlePause(ps)
-
-		return pubsub.Ack
-	}
-}
-
-func handlerMove(
-	gs *gamelogic.GameState,
-	channel *amqp.Channel,
-) func(gamelogic.ArmyMove) pubsub.AckType {
-	return func(move gamelogic.ArmyMove) pubsub.AckType {
-		// fmt.Printf("handlerMove : %v\n", move.Player.Username)
-		defer fmt.Print("> ")
-		outcome := gs.HandleMove(move)
-
-		switch outcome {
-		case gamelogic.MoveOutComeSafe:
-			return pubsub.Ack
-		case gamelogic.MoveOutcomeMakeWar:
-			err := pubsub.PublishJSON(
-				channel,
-				routing.ExchangePerilTopic,
-				routing.WarRecognitionsPrefix+"."+gs.Player.Username,
-				move,
-			)
-			if err != nil {
-				fmt.Printf("Bad stuff happened:\n%s\n", err)
-			}
-
-			// return pubsub.Ack
-			return pubsub.NackRequeue
-		}
-
-		return pubsub.NackDiscard
 	}
 }

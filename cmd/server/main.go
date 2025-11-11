@@ -16,7 +16,7 @@ func main() {
 
 	con, err := amqp.Dial(url)
 	if err != nil {
-		fmt.Printf("Bad stuff happened:\n%s\n", err)
+		fmt.Printf("amqp.Dial() failed:\n%s\n", err)
 		return
 	}
 	defer con.Close()
@@ -24,20 +24,31 @@ func main() {
 
 	channel, err := con.Channel()
 	if err != nil {
-		fmt.Printf("Bad stuff happened:\n%s\n", err)
+		fmt.Printf("con.Channel() failed:\n%s\n", err)
 		return
 	}
 	fmt.Println("channel open")
 
-	key := routing.GameLogSlug + ".*"
 	_, queue, err := pubsub.DeclareAndBind(
 		con,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
-		key,
+		routing.GameLogSlug+".*",
 		pubsub.Durable)
 	if err != nil {
-		fmt.Printf("Bad stuff happened:\n%s\n", err)
+		fmt.Printf("pubsub.DeclareAndBind(%s) failed:\n%s\n", routing.GameLogSlug, err)
+		return
+	}
+	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
+
+	_, queue, err = pubsub.DeclareAndBind(
+		con,
+		routing.ExchangePerilTopic,
+		routing.WarRecognitionsPrefix,
+		routing.WarRecognitionsPrefix+".*",
+		pubsub.Durable)
+	if err != nil {
+		fmt.Printf("pubsub.DeclareAndBind(%s) failed:\n%s\n", routing.WarRecognitionsPrefix, err)
 		return
 	}
 	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
@@ -63,7 +74,7 @@ func main() {
 				},
 			)
 			if err != nil {
-				fmt.Printf("Bad stuff happened:\n%s\n", err)
+				fmt.Printf("send pause failed:\n%s\n", err)
 			}
 		case "resume":
 			fmt.Println("sending a resume message")
@@ -76,13 +87,13 @@ func main() {
 				},
 			)
 			if err != nil {
-				fmt.Printf("Bad stuff happened:\n%s\n", err)
+				fmt.Printf("send resume failed:\n%s\n", err)
 			}
 		case "quit":
 			fmt.Println("program is shutting down")
 			return
 		default:
-			fmt.Printf("bad message: %s\n", stuff[0])
+			fmt.Printf("unknown command: %s\n", stuff[0])
 		}
 	}
 }
