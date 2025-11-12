@@ -48,9 +48,10 @@ func handlerMove(
 			)
 			if err != nil {
 				fmt.Printf("RecognitionOfWar message failed:\n%s\n", err)
+				return pubsub.NackRequeue
 			}
 
-			return pubsub.NackRequeue
+			return pubsub.Ack
 		}
 
 		return pubsub.NackDiscard
