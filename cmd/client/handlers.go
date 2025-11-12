@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -60,13 +61,12 @@ func handlerMove(
 
 func handlerWar(
 	gs *gamelogic.GameState,
+	channel *amqp.Channel,
 ) func(gamelogic.RecognitionOfWar) pubsub.AckType {
 	return func(rw gamelogic.RecognitionOfWar) pubsub.AckType {
 		// fmt.Printf("handlerPause : %v\n", ps.IsPaused)
 		defer fmt.Print("> ")
 		outcome, winner, loser := gs.HandleWar(rw)
-		_ = winner
-		_ = loser
 
 		switch outcome {
 		case gamelogic.WarOutcomeNotInvolved:
@@ -74,13 +74,39 @@ func handlerWar(
 		case gamelogic.WarOutcomeNoUnits:
 			return pubsub.NackDiscard
 		case gamelogic.WarOutcomeOpponentWon:
-			return pubsub.Ack
+			fallthrough
 		case gamelogic.WarOutcomeYouWon:
-			return pubsub.Ack
+			return log(gs, channel,
+				fmt.Sprintf("%s won a war against %s", winner, loser),
+			)
 		case gamelogic.WarOutcomeDraw:
-			return pubsub.Ack
+			return log(gs, channel,
+				fmt.Sprintf("%s and %s resulted in a draw", winner, loser),
+			)
 		}
 
 		return pubsub.NackDiscard
 	}
+}
+
+func log(
+	gs *gamelogic.GameState,
+	channel *amqp.Channel,
+	msg string,
+) pubsub.AckType {
+	err := pubsub.PublishGob(
+		channel,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug+"."+gs.Player.Username,
+		routing.GameLog{
+			Message:     msg,
+			Username:    gs.Player.Username,
+			CurrentTime: time.Now(),
+		},
+	)
+	if err != nil {
+		fmt.Printf("logging war message failed:\n%s\n", err)
+		return pubsub.NackRequeue
+	}
+	return pubsub.Ack
 }

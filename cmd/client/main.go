@@ -69,7 +69,7 @@ func main() {
 		routing.WarRecognitionsPrefix,
 		routing.WarRecognitionsPrefix+".*",
 		pubsub.Durable,
-		handlerWar(state),
+		handlerWar(state, channel),
 	)
 	if err != nil {
 		fmt.Printf("Subscribe to war failed:\n%s\n", err)
