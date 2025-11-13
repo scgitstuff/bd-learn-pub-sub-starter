@@ -14,15 +14,15 @@ func main() {
 
 	fmt.Println("Starting Peril server...")
 
-	con, err := amqp.Dial(url)
+	conn, err := amqp.Dial(url)
 	if err != nil {
 		fmt.Printf("amqp.Dial() failed:\n%s\n", err)
 		return
 	}
-	defer con.Close()
+	defer conn.Close()
 	fmt.Printf("connected to: %s\n", url)
 
-	channel, err := con.Channel()
+	channel, err := conn.Channel()
 	if err != nil {
 		fmt.Printf("con.Channel() failed:\n%s\n", err)
 		return
@@ -30,7 +30,7 @@ func main() {
 	fmt.Println("channel open")
 
 	_, queue, err := pubsub.DeclareAndBind(
-		con,
+		conn,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
 		routing.GameLogSlug+".*",
@@ -41,8 +41,17 @@ func main() {
 	}
 	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
+	pubsub.SubscribeGob(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		routing.GameLogSlug+".*",
+		pubsub.Durable,
+		handlerLog(),
+	)
+
 	_, queue, err = pubsub.DeclareAndBind(
-		con,
+		conn,
 		routing.ExchangePerilTopic,
 		routing.WarRecognitionsPrefix,
 		routing.WarRecognitionsPrefix+".*",

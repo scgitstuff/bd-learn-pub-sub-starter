@@ -3,6 +3,7 @@
         "amqp",
         "bootdotdev",
         "gamelogic",
-        "rabbitmq"
+        "rabbitmq",
+        "unmarshaller"
     ]
 }
