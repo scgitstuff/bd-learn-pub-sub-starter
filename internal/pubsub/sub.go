@@ -26,7 +26,12 @@ func subscribe[T any](
 		key,
 		queueType)
 	if err != nil {
-		return fmt.Errorf("could not declare and bind queue: %v", err)
+		return fmt.Errorf("could not declare and bind queue: \n%v", err)
+	}
+
+	err = ch.Qos(10, 0, false)
+	if err != nil {
+		return fmt.Errorf("Qos(10) failed: \n%v", err)
 	}
 
 	stuff, err := ch.Consume(
@@ -39,7 +44,7 @@ func subscribe[T any](
 		nil,
 	)
 	if err != nil {
-		return fmt.Errorf("could not consume messages: %v", err)
+		return fmt.Errorf("could not consume messages: \n%v", err)
 	}
 
 	go func() {
@@ -47,7 +52,7 @@ func subscribe[T any](
 
 			x, err := unmarshaller(msg.Body)
 			if err != nil {
-				fmt.Printf("could not unmarshal message: \n%v\n", err)
+				fmt.Printf("could not unmarshal message: \n%v", err)
 				continue
 			}
 
