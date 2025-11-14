@@ -29,19 +29,7 @@ func main() {
 	}
 	fmt.Println("channel open")
 
-	_, queue, err := pubsub.DeclareAndBind(
-		conn,
-		routing.ExchangePerilTopic,
-		routing.GameLogSlug,
-		routing.GameLogSlug+".*",
-		pubsub.Durable)
-	if err != nil {
-		fmt.Printf("pubsub.DeclareAndBind(%s) failed:\n%s\n", routing.GameLogSlug, err)
-		return
-	}
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
-
-	pubsub.SubscribeGob(
+	err = pubsub.SubscribeGob(
 		conn,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
@@ -49,18 +37,22 @@ func main() {
 		pubsub.Durable,
 		handlerLog(),
 	)
-
-	_, queue, err = pubsub.DeclareAndBind(
-		conn,
-		routing.ExchangePerilTopic,
-		routing.WarRecognitionsPrefix,
-		routing.WarRecognitionsPrefix+".*",
-		pubsub.Durable)
 	if err != nil {
-		fmt.Printf("pubsub.DeclareAndBind(%s) failed:\n%s\n", routing.WarRecognitionsPrefix, err)
+		fmt.Printf("pubsub.SubscribeGob(%s) failed:\n%s\n", routing.GameLogSlug, err)
 		return
 	}
-	fmt.Printf("Queue %v declared and bound!\n", queue.Name)
+
+	// _, queue, err := pubsub.DeclareAndBind(
+	// 	conn,
+	// 	routing.ExchangePerilTopic,
+	// 	routing.WarRecognitionsPrefix,
+	// 	routing.WarRecognitionsPrefix+".*",
+	// 	pubsub.Durable)
+	// if err != nil {
+	// 	fmt.Printf("pubsub.DeclareAndBind(%s) failed:\n%s\n", routing.WarRecognitionsPrefix, err)
+	// 	return
+	// }
+	// fmt.Printf("Queue %v declared and bound!\n", queue.Name)
 
 	// TODO: no constants defined, just hard coded shit
 	gamelogic.PrintServerHelp()

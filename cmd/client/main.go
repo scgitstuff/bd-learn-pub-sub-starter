@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -77,20 +79,20 @@ func main() {
 	}
 
 	for {
-		stuff := gamelogic.GetInput()
-		if len(stuff) == 0 {
+		words := gamelogic.GetInput()
+		if len(words) == 0 {
 			continue
 		}
 
-		switch stuff[0] {
+		switch words[0] {
 		case "spawn":
-			err := state.CommandSpawn(stuff)
+			err := state.CommandSpawn(words)
 			if err != nil {
 				fmt.Printf("Bad stuff happened:\n%s\n", err)
 				continue
 			}
 		case "move":
-			move, err := state.CommandMove(stuff)
+			move, err := state.CommandMove(words)
 			if err != nil {
 				fmt.Printf("Bad stuff happened:\n%s\n", err)
 				continue
@@ -111,12 +113,40 @@ func main() {
 		case "help":
 			gamelogic.PrintClientHelp()
 		case "spam":
-			fmt.Println("Spamming not allowed yet!")
+			// fmt.Println("Spamming not allowed yet!")
+			if len(words) < 2 {
+				fmt.Println("spam requires an argument")
+				continue
+			}
+			count, err := strconv.Atoi(words[1])
+			if err != nil {
+				fmt.Println("spam argument must be an int")
+				continue
+			}
+			for ; count > 0; count-- {
+				// fmt.Printf("spam: %v\n", count)
+				msg := gamelogic.GetMaliciousLog()
+				err = pubsub.PublishGob(
+					channel,
+					routing.ExchangePerilTopic,
+					routing.GameLogSlug+"."+user,
+					routing.GameLog{
+						CurrentTime: time.Now(),
+						Username:    user,
+						Message:     msg,
+					},
+				)
+				if err != nil {
+					fmt.Printf("Bad stuff happened:\n%s\n", err)
+					continue
+				}
+			}
+
 		case "quit":
 			gamelogic.PrintQuit()
 			return
 		default:
-			fmt.Printf("bad message: %s\n", stuff[0])
+			fmt.Printf("bad message: %s\n", words[0])
 		}
 	}
 }

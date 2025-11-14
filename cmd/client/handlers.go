@@ -99,9 +99,9 @@ func log(
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug+"."+gs.Player.Username,
 		routing.GameLog{
-			Message:     msg,
-			Username:    gs.Player.Username,
 			CurrentTime: time.Now(),
+			Username:    gs.Player.Username,
+			Message:     msg,
 		},
 	)
 	if err != nil {

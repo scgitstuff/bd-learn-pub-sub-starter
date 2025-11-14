@@ -14,7 +14,7 @@ func subscribe[T any](
 	exchange,
 	queueName,
 	key string,
-	simpleQueueType SimpleQueueType,
+	queueType SimpleQueueType,
 	handler func(T) AckType,
 	unmarshaller func([]byte) (T, error),
 ) error {
@@ -24,9 +24,9 @@ func subscribe[T any](
 		exchange,
 		queueName,
 		key,
-		simpleQueueType)
+		queueType)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not declare and bind queue: %v", err)
 	}
 
 	stuff, err := ch.Consume(
@@ -39,14 +39,15 @@ func subscribe[T any](
 		nil,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not consume messages: %v", err)
 	}
 
 	go func() {
 		for msg := range stuff {
+
 			x, err := unmarshaller(msg.Body)
 			if err != nil {
-				fmt.Printf("could not unmarshal message: %v\n", err)
+				fmt.Printf("could not unmarshal message: \n%v\n", err)
 				continue
 			}
 
@@ -54,13 +55,13 @@ func subscribe[T any](
 			switch ack {
 			case Ack:
 				msg.Ack(false)
-				fmt.Println("Ack")
+				// fmt.Println("Ack")
 			case NackRequeue:
 				msg.Nack(false, true)
-				fmt.Println("NackRequeue")
+				// fmt.Println("NackRequeue")
 			case NackDiscard:
 				msg.Nack(false, false)
-				fmt.Println("NackDiscard")
+				// fmt.Println("NackDiscard")
 			default:
 				fmt.Println("This should never happen")
 			}
@@ -75,7 +76,7 @@ func SubscribeJSON[T any](
 	exchange,
 	queueName,
 	key string,
-	simpleQueueType SimpleQueueType,
+	queueType SimpleQueueType,
 	handler func(T) AckType,
 ) error {
 
@@ -86,7 +87,7 @@ func SubscribeJSON[T any](
 		return x, err
 	}
 
-	return subscribe(conn, exchange, queueName, key, simpleQueueType, handler, f)
+	return subscribe(conn, exchange, queueName, key, queueType, handler, f)
 }
 
 func SubscribeGob[T any](
@@ -94,20 +95,19 @@ func SubscribeGob[T any](
 	exchange,
 	queueName,
 	key string,
-	simpleQueueType SimpleQueueType,
+	queueType SimpleQueueType,
 	handler func(T) AckType,
 ) error {
 
 	f := func(body []byte) (T, error) {
 		var x T
-		var buf bytes.Buffer
 
-		buf.Write(body)
-		dec := gob.NewDecoder(&buf)
+		buf := bytes.NewBuffer(body)
+		dec := gob.NewDecoder(buf)
 		err := dec.Decode(&x)
 
 		return x, err
 	}
 
-	return subscribe(conn, exchange, queueName, key, simpleQueueType, handler, f)
+	return subscribe(conn, exchange, queueName, key, queueType, handler, f)
 }

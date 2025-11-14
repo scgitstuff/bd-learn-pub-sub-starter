@@ -10,10 +10,13 @@ import (
 
 func handlerLog() func(gl routing.GameLog) pubsub.AckType {
 	return func(gl routing.GameLog) pubsub.AckType {
-		// fmt.Printf("handlerLog : %v\n", gl.Message)
 		defer fmt.Print("> ")
-		gamelogic.WriteLog(gl)
 
+		err := gamelogic.WriteLog(gl)
+		if err != nil {
+			fmt.Printf("error writing log: %v\n", err)
+			return pubsub.NackRequeue
+		}
 		return pubsub.Ack
 	}
 }
